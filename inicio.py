@@ -1,7 +1,42 @@
-from flask import Flask,flash,render_template,request,redirect,url_for
-
+from flask import Flask,render_template,request,redirect,url_for
+import urllib.parse
+from sqlalchemy import create_engine, MetaData
+from sqlalchemy.ext.automap import automap_base
+from sqlalchemy.orm import sessionmaker
+from level import Level
 app = Flask(__name__)
 app.secret_key = 'seu_segredo_aqui'  # Necessário para usar flash messages
+
+# informações do  banco
+
+user = 'root'
+password = urllib.parse.quote_plus('senac')
+host = 'localhost'
+database = 'homefinance'
+
+# connection string
+
+connection_string = f'mysql+pymysql://{user}:{password}@{host}/{database}'
+
+# função create_engine
+
+engine = create_engine(connection_string)
+
+#  Refletindo o Banco de Dados
+
+metadata = MetaData()
+metadata.reflect(engine)
+
+# mapeando 
+Base = automap_base(metadata=metadata) 
+Base.prepare()
+
+# ligando as classes
+# Ligando com a classe
+Level =  Base.classes.level
+
+# Criar a sessão do SQLAlchemy
+Session = sessionmaker(bind=engine)
 
 @app.route('/')
 def index():
@@ -34,6 +69,25 @@ def listar_despesas():
 @app.route('/cadastrardesp')
 def cadastrar_despesa():
     pass
+
+@app.route('/showlevel')
+def show_level():
+    return render_template('level.html')
+
+@app.route('/addlevel', methods=['POST','GET'])
+def insert_level():
+    session_db = Session()  # Criar uma nova sessão
+    name_level = request.form['name_level']
+    level = Level(name_level=name_level) 
+    try:
+        session_db.add(level)
+        session_db.commit()
+    except:
+        session_db.rollback()
+    finally:
+        session_db.close()
+    return redirect(url_for('show_level'))
+
 
 app.run(debug=True) 
 
